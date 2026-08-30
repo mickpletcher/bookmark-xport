@@ -1,15 +1,15 @@
 # Repository Assessment
 
 **Last full assessment:** 2026-08-29
-**Assessed repository state:** Main working tree based on commit `2e23b9c`, including the release-readiness changes described here
-**Basis:** 94 automated tests with branch coverage; Ruff; strict mypy; live count-only Chrome, Edge, and Firefox integration with source hashes compared; Windows PyInstaller build and bundle smoke test; documentation compliance; GitHub configuration inspection
+**Assessed repository state:** `main` at commit `c35f307`, including the release-readiness changes described here
+**Basis:** 94 automated tests with branch coverage; Ruff; strict mypy; live count-only Chrome, Edge, and Firefox integration with source hashes compared; Windows PyInstaller build and bundle smoke test; green Windows, macOS, and Ubuntu CI; green Windows and macOS packaging; green CodeQL; documentation compliance; GitHub configuration inspection
 **Assessed by:** Agent
 
 ## Executive Summary
 
-The core application works end to end for Chrome, Edge, and Firefox on Windows 11 and reads each source file without changing its SHA-256 hash. The automated suite covers parsing, discovery, export, privacy controls, preferences, and the interactive Qt paths. It passes with 84.83 percent branch coverage. Ruff and strict mypy pass. A Windows PyInstaller bundle builds and remains running during an offscreen smoke test.
+The core application works end to end for Chrome, Edge, and Firefox on Windows 11 and reads each source file without changing its SHA-256 hash. The automated suite covers parsing, discovery, export, privacy controls, preferences, and the interactive Qt paths. It passes with 84.83 percent branch coverage. Ruff and strict mypy pass. CI is green on Windows, macOS, and Ubuntu. Windows and macOS PyInstaller bundles build and remain running during offscreen smoke tests.
 
-The release remains blocked by the manual browser import check and live Safari execution. The expanded Windows, macOS, and Linux CI workflow and macOS packaging job require their first run after publication. No release tag exists.
+The release remains blocked by the manual browser import check and live Safari execution. No release tag exists.
 
 ## Agent Handoff
 
@@ -37,10 +37,10 @@ Read on every Class 2+ task.
 - Lint: PASS, Ruff check and format check
 - Types: PASS, strict mypy over 37 source, test, and build files
 - Dependencies: PASS, `pip check`; one runtime dependency and a committed development lock
-- Packaging: PASS on Windows, PyInstaller 6.22.2 build and offscreen bundle smoke test
-- CI: Existing four-job Windows and macOS run passed at commit `2e23b9c`; expanded six-platform test matrix, quality, packaging, and CodeQL jobs await their first published run
-- Security: Dependabot alerts and security updates, secret scanning, push protection, private vulnerability reporting, and read-only workflow permissions are enabled; CodeQL workflow is configured but has not run
-- Branch protection: Not yet enabled; enable after the expanded CI contexts exist
+- Packaging: PASS locally on Windows and in CI on Windows and macOS with PyInstaller build, offscreen smoke, and uploaded artifacts
+- CI: PASS at commit `c35f307`; six platform and Python test jobs, quality, two packaging jobs, and CodeQL completed successfully
+- Security: Dependabot alerts and security updates, secret scanning, push protection, private vulnerability reporting, and read-only workflow permissions are enabled; CodeQL passed; open CodeQL, Dependabot, and secret-scanning alert counts are zero
+- Branch protection: Enabled on `main` with strict required checks, pull requests, linear history, conversation resolution, and force-push and deletion prevention
 - Standing waivers: 2
 
 ## Standing Waivers
@@ -59,7 +59,7 @@ Verified locally on Windows 11:
 - Excludes bookmark content and URL credentials from logs and preferences.
 - Builds and starts a Windows PyInstaller bundle.
 
-Implemented and automated-fixture tested:
+Implemented and CI-verified with synthetic fixtures:
 
 - Safari parsing, unsupported-platform handling, and Full Disk Access guidance.
 - Windows, macOS, and Linux unit test matrix.
@@ -80,11 +80,9 @@ No open technical debt. TD-001 and TD-002 were resolved and moved to [docs/archi
 
 ## Current Priorities
 
-1. Publish the release-readiness change and obtain green expanded CI, packaging, and CodeQL runs.
-2. Enable `main` branch protection using the verified CI contexts.
-3. Complete the Chrome, Edge, and Firefox manual import check.
-4. Execute live Safari validation on a real Mac with and without Full Disk Access.
-5. Tag `v0.1.0` only after the release gates above are complete.
+1. Complete the Chrome, Edge, and Firefox manual import check.
+2. Execute live Safari validation on a real Mac with and without Full Disk Access.
+3. Tag `v0.1.0` only after the release gates above are complete.
 
 ## Repository Limitations
 
