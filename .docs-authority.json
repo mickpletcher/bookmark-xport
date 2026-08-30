@@ -1,7 +1,7 @@
 {
   "standardVersion": "2.2",
   "tier": "1",
-  "sourcePaths": ["src", "tests", "scripts"],
+  "sourcePaths": ["src", "tests", "scripts", ".github", "pyproject.toml", "requirements-dev.lock"],
   "maxDriftDays": 30,
   "responsibilities": {
     "Project overview":         { "authority": "README.md",                        "class": "living" },
@@ -12,6 +12,7 @@
     "Technical debt":           { "authority": "TECH-DEBT.md",                     "class": "living" },
     "Deferred improvements":    { "authority": "FUTURE-UPGRADES.md",               "class": "living" },
     "Validation":               { "authority": "VALIDATION.md",                    "class": "living" },
+    "Security policy":          { "authority": "SECURITY.md",                      "class": "living" },
     "Operations":               { "authority": "Not required at this tier",        "class": "living" },
     "Requirement traceability": { "authority": "Not required at this tier",        "class": "living" },
     "Agreed scope":             { "authority": "Not required at this tier",        "class": "contractual" },

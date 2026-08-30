@@ -10,7 +10,13 @@ from bookmark_exporter.services.browser_discovery import BrowserStatus, discover
 
 
 class _Stub(BrowserProvider):
-    def __init__(self, browser_id: str, supported: bool = True, profiles=None, error=None):
+    def __init__(
+        self,
+        browser_id: str,
+        supported: bool = True,
+        profiles: list[BrowserProfile] | None = None,
+        error: Exception | None = None,
+    ) -> None:
         self.browser_id = browser_id
         self.browser_name = browser_id.title()
         self._supported = supported

@@ -57,9 +57,12 @@ def _render_folder(folder: BookmarkFolder, depth: int) -> str:
 
 
 def _render_children(folder: BookmarkFolder, depth: int) -> list[str]:
-    parts = [_render_folder(child, depth) for child in folder.folders]
-    parts.extend(_render_bookmark(bookmark, depth) for bookmark in folder.bookmarks)
-    return parts
+    return [
+        _render_folder(child, depth)
+        if isinstance(child, BookmarkFolder)
+        else _render_bookmark(child, depth)
+        for child in folder.children
+    ]
 
 
 def render(folder: BookmarkFolder) -> str:

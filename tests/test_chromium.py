@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -26,6 +27,13 @@ def test_parses_roots_and_nesting(chromium_json: str) -> None:
     assert development.name == "Development"
     assert [folder.name for folder in development.folders] == ["Tools", "Empty"]
     assert [bookmark.title for bookmark in development.bookmarks] == ["Example Docs"]
+    assert [
+        getattr(child, "name", getattr(child, "title", "")) for child in development.children
+    ] == [
+        "Example Docs",
+        "Tools",
+        "Empty",
+    ]
 
 
 def test_skips_malformed_and_unknown_nodes(chromium_json: str) -> None:
@@ -58,7 +66,9 @@ def test_source_ids_are_unique(chromium_json: str) -> None:
     root = parse_bookmarks(chromium_json)
     ids = [folder.source_id for folder in root.walk()]
     assert len(ids) == len(set(ids))
-    assert root.find(ids[3]) is not None
+    source_id = ids[3]
+    assert source_id is not None
+    assert root.find(source_id) is not None
 
 
 def test_date_added_is_converted(chromium_json: str) -> None:
@@ -78,7 +88,7 @@ def test_unparsable_root_is_skipped_not_fatal() -> None:
 
 
 def test_deeply_nested_input_does_not_recurse_without_bound() -> None:
-    node: dict = {"type": "folder", "name": "leaf", "children": []}
+    node: dict[str, Any] = {"type": "folder", "name": "leaf", "children": []}
     for _ in range(500):
         node = {"type": "folder", "name": "deep", "children": [node]}
 
@@ -148,7 +158,7 @@ def test_load_bookmarks_missing_file(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not is_windows(), reason="LOCALAPPDATA is a Windows concept")
-def test_chrome_paths_come_from_the_environment(monkeypatch) -> None:
+def test_chrome_paths_come_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LOCALAPPDATA", r"D:\elsewhere\Local")
     expected = Path(r"D:\elsewhere\Local") / "Google" / "Chrome" / "User Data"
     assert ChromeProvider().user_data_dirs() == [expected]

@@ -6,7 +6,7 @@ they came from.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 
 from bookmark_exporter.models import BookmarkFolder
@@ -18,12 +18,8 @@ def _item_for(folder: BookmarkFolder) -> QStandardItem:
     item = QStandardItem(folder.name or "(untitled)")
     item.setEditable(False)
     item.setData(folder, FOLDER_ROLE)
-    item.setToolTip(
-        f"{folder.bookmark_count} bookmarks, {folder.subfolder_count} subfolders"
-    )
-    item.setAccessibleText(
-        f"{folder.name or 'untitled folder'}, {folder.bookmark_count} bookmarks"
-    )
+    item.setToolTip(f"{folder.bookmark_count} bookmarks, {folder.subfolder_count} subfolders")
+    item.setAccessibleText(f"{folder.name or 'untitled folder'}, {folder.bookmark_count} bookmarks")
     for child in folder.folders:
         item.appendRow(_item_for(child))
     return item
@@ -37,7 +33,7 @@ def build_folder_model(root: BookmarkFolder) -> QStandardItemModel:
     return model
 
 
-def folder_from_index(model: QStandardItemModel, index) -> BookmarkFolder | None:
+def folder_from_index(model: QStandardItemModel, index: QModelIndex) -> BookmarkFolder | None:
     if not index.isValid():
         return None
     value = model.data(index, FOLDER_ROLE)

@@ -1,6 +1,6 @@
 # Architecture
 
-**Last reviewed:** 2026-08-28
+**Last reviewed:** 2026-08-29
 
 Material claims carry inline evidence. Anything not evidenced is marked as such.
 
@@ -24,8 +24,8 @@ Evidence: no Qt import exists outside `src/bookmark_exporter/ui/` and `src/bookm
 
 ## Major Components
 
-**Normalized model.** `Bookmark`, `BookmarkFolder`, `BrowserProfile`, and `assign_source_ids`. Folder counts are computed recursively from the tree rather than stored.
-Evidence: src/bookmark_exporter/models/bookmarks.py:1-61
+**Normalized model.** `Bookmark`, `BookmarkFolder`, `BrowserProfile`, and `assign_source_ids`. Each folder stores one ordered `children` sequence so interleaved bookmarks and subfolders retain their source order. Filtered folder and bookmark views and recursive counts are computed from that sequence.
+Evidence: src/bookmark_exporter/models/bookmarks.py:14-88
 
 **Provider interface.** `BrowserProvider` declares `is_supported_platform`, `detect_profiles`, and `load_bookmarks`. Every recoverable failure is one of seven `BrowserError` subclasses carrying a user-facing message.
 Evidence: src/bookmark_exporter/browsers/base.py:1-39
@@ -45,8 +45,8 @@ Evidence: src/bookmark_exporter/services/browser_discovery.py:60-97
 **HTML exporter.** Pure function from `BookmarkFolder` to a string. No file I/O.
 Evidence: src/bookmark_exporter/exporters/html_exporter.py:1-59
 
-**Export service.** Adds the `.html` suffix, checks writability, and writes UTF-8 with LF newlines. Contains no Qt import.
-Evidence: src/bookmark_exporter/services/export_service.py:37-52
+**Export service.** Adds the `.html` suffix and writes UTF-8 with LF newlines to a same-directory temporary file before atomically replacing the destination. A failed replacement leaves an existing destination unchanged. Contains no Qt import.
+Evidence: src/bookmark_exporter/services/export_service.py:37-88
 
 ## Application Entry Points
 
@@ -66,8 +66,8 @@ Evidence: src/bookmark_exporter/ui/main_window.py:118-140, 176-201, 227-247
 
 ## Data Storage
 
-The application reads browser data and writes two things of its own: a rotating log file and a preferences file holding the last export directory. No bookmark content is persisted outside the file the user explicitly exports.
-Evidence: src/bookmark_exporter/utils/logging_setup.py:20-30, src/bookmark_exporter/utils/preferences.py:18-49
+The application reads browser data and writes a rotating log file, a preferences file holding the last export directory, and an explicit HTML export. The export uses a short-lived same-directory temporary file for atomic replacement. Logs and preferences do not contain bookmark titles, folder names, URL paths, URL credentials, or browser content.
+Evidence: src/bookmark_exporter/services/export_service.py:51-82, src/bookmark_exporter/utils/logging_setup.py:28-48, src/bookmark_exporter/utils/preferences.py:17-55
 
 Browser data locations read, all read-only:
 
@@ -94,8 +94,8 @@ Evidence: src/bookmark_exporter/ui/main_window.py:44-74, 231-238, 251-253
 
 ## Significant Dependencies
 
-PySide6 (>= 6.6) is the only runtime dependency. Everything else is the standard library: `json`, `sqlite3`, `plistlib`, `configparser`, `pathlib`, `logging`, `html`.
-Evidence: pyproject.toml dependencies, requirements.txt
+PySide6 (>= 6.6) is the only runtime dependency. Development tooling includes pytest, pytest-qt, coverage, Ruff, mypy, pip-tools, and PyInstaller. `requirements-dev.lock` pins the resolved development and packaging toolchain used by CI.
+Evidence: pyproject.toml, requirements-dev.lock
 
 ## Security Architecture
 
@@ -112,8 +112,10 @@ Browser data is treated as untrusted input.
 - **Filenames cannot traverse.** Separators, control characters, Windows reserved names, and leading dots are stripped from the suggested filename.
   Evidence: src/bookmark_exporter/utils/paths.py:12-18, 40-58
 - **URLs are never fetched or executed.** The application performs no network I/O of any kind.
-- **Logs do not leak URLs.** `redact_url` reduces a URL to scheme and host.
-  Evidence: src/bookmark_exporter/utils/logging_setup.py:33-45
+- **Logs exclude bookmark content and URL credentials.** Successful exports log counts only. `redact_url` reconstructs an authority from hostname and optional port, excluding user information, path, query, and fragment.
+  Evidence: src/bookmark_exporter/services/export_service.py:78-82, src/bookmark_exporter/utils/logging_setup.py:28-48
+- **Exports are atomic.** Content is flushed to a same-directory temporary file and committed with `os.replace`, so an interrupted write does not truncate an existing destination.
+  Evidence: src/bookmark_exporter/services/export_service.py:51-76
 - **OS controls are not bypassed.** A macOS Full Disk Access denial is reported with instructions.
   Evidence: src/bookmark_exporter/browsers/safari.py:42-46
 
@@ -129,8 +131,8 @@ Evidence: src/bookmark_exporter/utils/logging_setup.py:48-72
 
 ## Deployment Architecture
 
-Runs from source, or as a PyInstaller windowed bundle produced by `scripts/build.py`. Packaging logic is confined to that script.
-Evidence: scripts/build.py:1-37
+Runs from source, or as a PyInstaller windowed bundle produced by `scripts/build.py`. The wrapper invokes PyInstaller through the active Python interpreter. `scripts/smoke_bundle.py` starts the packaged executable offscreen and fails if it exits early. CI builds and smoke tests Windows and macOS bundles.
+Evidence: scripts/build.py:1-50, scripts/smoke_bundle.py:1-49, .github/workflows/tests.yml
 
 ## Architectural Constraints
 
@@ -146,8 +148,6 @@ See [docs/decisions/README.md](docs/decisions/README.md). ADR-001 through ADR-00
 
 - Safari code paths have never been executed. See [VALIDATION.md](VALIDATION.md).
 - The whole bookmark tree is loaded into memory and rebuilt into a `QStandardItemModel`. Fine at observed sizes (about 300 bookmarks); not assessed at very large ones.
-- Bookmark ordering within a folder puts subfolders before bookmarks, matching how bookmark files are conventionally written. The original mixed ordering is not preserved.
-  Evidence: src/bookmark_exporter/exporters/html_exporter.py:54-57
 
 ## Planned Evolution
 

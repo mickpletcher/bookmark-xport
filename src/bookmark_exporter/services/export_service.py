@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,19 +48,35 @@ def export_folder(folder: BookmarkFolder, destination: Path | str) -> ExportResu
     except OSError as exc:
         raise ExportError(f"The folder '{parent}' could not be created.") from exc
 
-    if not os.access(parent, os.W_OK):
-        raise ExportError(f"The folder '{parent}' is not writable.")
-
+    temporary_path: Path | None = None
     try:
-        path.write_text(html, encoding="utf-8", newline="\n")
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="\n",
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            dir=parent,
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            temporary.write(html)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        os.replace(temporary_path, path)
     except PermissionError as exc:
         raise ExportError(f"Permission was denied writing to '{path}'.") from exc
     except OSError as exc:
         raise ExportError(f"The file '{path}' could not be written.") from exc
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            try:
+                temporary_path.unlink()
+            except OSError:
+                log.warning("A temporary export file could not be removed.")
 
     log.info(
-        "Exported folder '%s' (%d bookmarks, %d subfolders)",
-        folder.name,
+        "Exported %d bookmarks and %d subfolders.",
         folder.bookmark_count,
         folder.subfolder_count,
     )

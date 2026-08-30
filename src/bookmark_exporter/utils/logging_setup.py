@@ -35,9 +35,17 @@ def redact_url(url: str) -> str:
         return "<unparsable url>"
     if not parts.scheme:
         return "<relative url>"
-    if not parts.netloc:
+    if not parts.hostname:
         return f"{parts.scheme}:<redacted>"
-    return f"{parts.scheme}://{parts.netloc}/<redacted>"
+    hostname = parts.hostname
+    if ":" in hostname:
+        hostname = f"[{hostname}]"
+    try:
+        port = parts.port
+    except ValueError:
+        return "<unparsable url>"
+    authority = f"{hostname}:{port}" if port is not None else hostname
+    return f"{parts.scheme}://{authority}/<redacted>"
 
 
 def configure_logging(verbose: bool = False) -> Path | None:

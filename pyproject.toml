@@ -12,7 +12,15 @@ license = { file = "LICENSE" }
 dependencies = ["PySide6>=6.6"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pyinstaller>=6.0"]
+dev = [
+    "mypy>=1.17",
+    "pip-tools>=7.5",
+    "pyinstaller>=6.0",
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "pytest-qt>=4.4",
+    "ruff>=0.12",
+]
 
 [project.gui-scripts]
 bookmark-xport = "bookmark_exporter.__main__:main"
@@ -24,3 +32,25 @@ where = ["src"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "SIM", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+packages = ["bookmark_exporter"]
+strict = true
+
+[tool.coverage.run]
+branch = true
+source = ["bookmark_exporter"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = true

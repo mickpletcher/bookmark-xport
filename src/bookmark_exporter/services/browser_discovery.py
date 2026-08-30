@@ -94,7 +94,9 @@ def discover(providers: list[BrowserProvider] | None = None) -> list[DiscoveredB
                 DiscoveredBrowser(
                     provider=provider,
                     status=BrowserStatus.ERROR,
-                    message=f"{provider.browser_name} profiles could not be inspected. See the log.",
+                    message=(
+                        f"{provider.browser_name} profiles could not be inspected. See the log."
+                    ),
                 )
             )
             continue

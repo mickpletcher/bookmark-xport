@@ -2,7 +2,7 @@
 
 Standard version: 2.2
 Project tier: 1
-Lifecycle mode: Greenfield
+Lifecycle mode: Maintenance
 
 ## Authority Resolution
 

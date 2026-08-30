@@ -33,6 +33,7 @@ Safari support is implemented and unit tested against a synthetic fixture, but i
 - Discovers multiple profiles for Chromium browsers and Firefox.
 - Browsable folder tree with recursive bookmark and subfolder counts.
 - Exports exactly one selected folder plus all descendants, never siblings or parents.
+- Preserves the original mixed ordering of bookmarks and subfolders.
 - Netscape-format HTML output that imports into mainstream browsers.
 - Suggests a sanitized filename such as `Development-Bookmarks.html`.
 - Remembers the last export directory. Nothing else is persisted.
@@ -61,6 +62,7 @@ Browser-specific parsing is isolated behind a provider interface, feeding a norm
 │   ├── archive/           Resolved debt, issues, upgrades
 │   └── decisions/         Architecture decision records
 ├── changelog.d/           Per-change changelog fragments
+├── requirements-dev.lock  Reproducible development and packaging dependencies
 └── prompts/               Implementation brief and the documentation standard
 ```
 
@@ -70,7 +72,8 @@ Browser-specific parsing is isolated behind a provider interface, feeding a norm
 git clone <repository-url>
 cd bookmark-xport
 py -3.13 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pip install --requirement requirements-dev.lock
+.\.venv\Scripts\python.exe -m pip install --no-build-isolation --no-deps --editable .
 .\.venv\Scripts\python.exe -m bookmark_exporter
 ```
 
@@ -94,13 +97,19 @@ Add `--verbose` for debug-level logging.
 
 Produces a windowed PyInstaller bundle in `dist/`. Packaging logic lives entirely in that script; the application does not know it is frozen.
 
+Smoke-test the bundle without opening a visible window:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/smoke_bundle.py
+```
+
 ## Privacy
 
 - All processing is local. The application performs no network I/O of any kind.
 - No analytics and no telemetry.
-- Full URLs are never written to the log at normal levels; only scheme and host.
+- Bookmark titles, folder names, URL paths, query strings, and URL credentials are never written to the log.
 - Bookmark titles and URLs are never stored in preferences.
-- The only file containing bookmark content is the one you explicitly export.
+- Export data is written to a same-directory temporary file and atomically replaced into the destination. The temporary file is removed immediately.
 
 ## Read-Only Guarantee
 
@@ -110,7 +119,10 @@ This release is an exporter. It never adds, deletes, renames, or reorganizes bro
 
 ```powershell
 $env:QT_QPA_PLATFORM = "offscreen"
-.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m pytest --cov=bookmark_exporter --cov-report=term-missing --cov-fail-under=80
+.\.venv\Scripts\python.exe -m ruff check src tests scripts
+.\.venv\Scripts\python.exe -m ruff format src tests scripts --check
+.\.venv\Scripts\python.exe -m mypy src tests scripts
 ```
 
 See [VALIDATION.md](VALIDATION.md) for levels, the validation matrix, and known limitations.
@@ -127,6 +139,8 @@ Read [AGENTS.md](AGENTS.md) and [PROJECT-STANDARD.md](PROJECT-STANDARD.md) first
 
 Add a fragment to `changelog.d/` rather than editing CHANGELOG.md on a branch.
 
+Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
 ## Documentation
 
 See the Authority Mapping in [PROJECT-STANDARD.md](PROJECT-STANDARD.md) for the authoritative source of each documentation responsibility.
@@ -135,7 +149,7 @@ See the Authority Mapping in [PROJECT-STANDARD.md](PROJECT-STANDARD.md) for the 
 
 - Safari is implemented but has never been executed. See [VALIDATION.md](VALIDATION.md).
 - Exported HTML has not yet been import-tested in a browser.
-- Within a folder, subfolders are written before bookmarks; the original mixed ordering is not preserved.
+- The Windows bundle is locally built and smoke tested. macOS packaging is validated by CI rather than locally.
 - Open technical debt is listed in [TECH-DEBT.md](TECH-DEBT.md); known defects in [ISSUES.md](ISSUES.md).
 
 ## License

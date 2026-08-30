@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
+from typing import cast
 
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, Signal, SignalInstance, Slot
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut, QStandardItemModel
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -145,7 +146,12 @@ class MainWindow(QMainWindow):
 
     @Slot(object)
     def _on_discovered(self, result: object) -> None:
-        self._browsers = list(result)  # type: ignore[arg-type]
+        if not isinstance(result, list) or not all(
+            isinstance(browser, DiscoveredBrowser) for browser in result
+        ):
+            self._on_error("Browser discovery returned an invalid result.")
+            return
+        self._browsers = result
         self.browser_combo.blockSignals(True)
         self.browser_combo.clear()
 
@@ -156,20 +162,21 @@ class MainWindow(QMainWindow):
                 label = f"{browser.browser_name} (unavailable)"
             self.browser_combo.addItem(label, browser)
             if not browser.is_usable:
-                item = self.browser_combo.model().item(index)
+                item = cast(QStandardItemModel, self.browser_combo.model()).item(index)
                 if item is not None:
                     item.setEnabled(False)
             elif first_usable < 0:
                 first_usable = index
-        self.browser_combo.blockSignals(False)
-
         self._set_busy(False, "")
         if first_usable < 0:
+            self.browser_combo.blockSignals(False)
             self.status_label.setText(
                 "No readable bookmark data was found for any supported browser."
             )
             return
         self.browser_combo.setCurrentIndex(first_usable)
+        self.browser_combo.blockSignals(False)
+        self._on_browser_changed()
 
     # Profiles and bookmarks --------------------------------------------
 
@@ -231,7 +238,11 @@ class MainWindow(QMainWindow):
     def _on_selection_changed(self) -> None:
         model = self.tree.model()
         indexes = self.tree.selectionModel().selectedIndexes() if self.tree.selectionModel() else []
-        folder = folder_from_index(model, indexes[0]) if indexes else None
+        folder = (
+            folder_from_index(model, indexes[0])
+            if isinstance(model, QStandardItemModel) and indexes
+            else None
+        )
         self._selected_folder = folder
 
         if folder is None:
@@ -301,6 +312,6 @@ class MainWindow(QMainWindow):
         self._set_busy(False, message)
         log.warning("User-facing error: %s", message)
 
-    def closeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802 - Qt naming
         self._pool.waitForDone(2000)
         super().closeEvent(event)

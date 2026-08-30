@@ -1,86 +1,111 @@
 # Validation
 
-**Last reviewed:** 2026-08-28
+**Last reviewed:** 2026-08-29
 
-> The authoritative runbook for proving a change works. Not a log of runs.
-> Execution evidence travels with the change in the commit or completion report.
+> The authoritative runbook for proving a change works. It is not a run log.
+> Execution evidence travels in the completion report and CI run.
 
 ## Validation Levels
 
 ### Basic
 
-Unit tests over the normalized model, the Chromium parser, the Firefox parser, and the HTML exporter, using synthetic fixtures. No real browser data.
+Automated tests with branch coverage plus Ruff and strict mypy. Bookmark fixtures are synthetic. Qt interaction tests run offscreen.
 
 ### Integration
 
-Provider discovery and bookmark loading against real local browser profiles on the developer machine. Cannot be automated in CI because it depends on installed browsers and user profiles.
+Basic validation plus provider discovery and loading against real local browser profiles. Output is count-only. Hash every source file before and after loading and require equality.
 
 ### Full
 
-Basic plus integration plus an exported HTML file re-imported into at least one browser to confirm the output is genuinely importable.
+Integration validation plus PyInstaller build and bundle smoke test on affected platforms, then manual import of an exported HTML file into Chrome, Edge, and Firefox when export behavior changes.
 
 ## Environment Requirements
 
-- Python 3.12 or later.
-- Windows 11 for Chrome, Edge, and Firefox integration validation.
-- macOS for any Safari validation. Not available on the primary development machine.
+- Python 3.12 or 3.13.
+- PowerShell 7 for the documentation check.
+- Windows 11 for local Chrome, Edge, and Firefox integration validation.
+- A real macOS Safari profile for live Safari validation.
 
 ## Setup
 
 ```powershell
 py -3.13 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pip install --requirement requirements-dev.lock
+.\.venv\Scripts\python.exe -m pip install --no-build-isolation --no-deps --editable .
 ```
 
 On macOS and Linux use `python3 -m venv .venv` and `.venv/bin/python`.
 
-The Qt smoke tests need a platform plugin. Set `QT_QPA_PLATFORM=offscreen` when no display is available. `tests/test_ui.py` skips entirely when PySide6 is not installed.
+Regenerate the lock after an intentional dependency change:
+
+```powershell
+.\.venv\Scripts\python.exe -m piptools compile --extra dev --allow-unsafe --output-file requirements-dev.lock --strip-extras pyproject.toml
+```
 
 ## Commands
 
-| Purpose | Command | Expected exit code | Typical runtime |
-|---|---|---|---|
-| Full test suite | `python -m pytest -q` | 0 | under 5 seconds |
-| One suite | `python -m pytest tests/test_firefox.py -q` | 0 | under 2 seconds |
-| Documentation compliance | `pwsh ./scripts/docs-check.ps1 -Markdown` | 0 | under 5 seconds |
-| Package build | `python scripts/build.py` | 0 | minutes |
+| Purpose | Command | Expected exit code |
+|---|---|---|
+| Tests and coverage | `python -m pytest --cov=bookmark_exporter --cov-report=term-missing --cov-fail-under=80` | 0 |
+| Ruff lint | `python -m ruff check src tests scripts` | 0 |
+| Ruff format | `python -m ruff format src tests scripts --check` | 0 |
+| Strict typing | `python -m mypy src tests scripts` | 0 |
+| Dependency consistency | `python -m pip check` | 0 |
+| Installed package | `python -c "import bookmark_exporter"` | 0 |
+| Documentation | `pwsh ./scripts/docs-check.ps1 -Markdown -FailOnGap` | 0 |
+| Package build | `python scripts/build.py` | 0 |
+| Bundle smoke | `python scripts/smoke_bundle.py` | 0 |
 
-Integration check against real local browsers, printing counts only and never bookmark content:
+Set `QT_QPA_PLATFORM=offscreen` before tests and bundle smoke validation where no display is available.
 
-```powershell
-.\.venv\Scripts\python.exe -c "import sys; sys.path.insert(0,'src'); from bookmark_exporter.services.browser_discovery import discover; [print(b.browser_name, b.status.value, len(b.profiles)) for b in discover()]"
-```
+## Local Integration Check
 
-A read-only proof for any provider is to hash the source file before and after `load_bookmarks` and confirm the digests match. `tests/test_firefox.py` does exactly this for Firefox.
+The check may read real local profiles but must print counts only. It must hash each `profile.data_path` before and after `load_bookmarks` and fail if any digest changes. Do not print profile paths, titles, URLs, or machine identifiers.
+
+Expected providers on the primary Windows machine are Chrome, Edge, and Firefox. Safari must report unsupported on Windows.
 
 ## Manual Import Check
 
-Required for exporter and packaging changes. Export a folder, then import the resulting file through Chrome, Edge, and Firefox bookmark import and confirm the folder hierarchy appears intact.
+Required for exporter, normalized-ordering, and packaging changes:
+
+1. Export a synthetic or deliberately non-sensitive folder containing interleaved bookmarks, nested folders, Unicode, and an empty folder.
+2. Import the file through Chrome bookmark import and verify hierarchy, order, titles, URLs, and counts.
+3. Repeat with Edge and Firefox.
+4. Delete the imported test folder after verification.
+
+Browser UI automation is prohibited. This is a human validation step.
+
+## Packaging Check
+
+`scripts/build.py` must run through the active Python interpreter and place output under `dist/`. `scripts/smoke_bundle.py` starts the platform executable with the offscreen Qt platform, waits five seconds, and passes only when the process remains running. CI uploads Windows and macOS bundles as run artifacts.
 
 ## Known Validation Limitations
 
-Mandatory section. Each entry states what cannot be validated, why, and the risk.
+- **Live Safari access is not validated.** Synthetic plist parsing, unsupported-platform behavior, and permission guidance are automated. Real `Bookmarks.plist` structures and TCC behavior still require a real Mac and user-granted Full Disk Access. Risk: Safari may fail despite green macOS fixture tests.
+- **Browser import compatibility is manual and incomplete.** No automated test can prove that Chrome, Edge, and Firefox accept the generated file. Risk: a browser-specific import issue can survive structural HTML tests.
 
-- **Safari provider has never been executed.** The primary development machine runs Windows 11 and Safari exists only on macOS. Parsing is covered by tests using a synthetic plist, and the permission and unsupported-OS paths are covered only through monkeypatching. Risk: real `Bookmarks.plist` structures, real TCC denials, and real profile discovery are unverified. Mitigation: Safari logic is isolated behind the provider interface, discovery contains provider failures, and README states Safari support is unverified.
-- **Exported HTML import compatibility is manual.** Confirming that a browser actually accepts the exported file requires a human importing it. Risk: the exporter can produce structurally valid but practically unimportable output. Mitigation: the manual import check above is required for exporter changes.
-- **No macOS or Linux execution.** CI is configured for windows-latest and macos-latest but has never run. Risk: platform-specific path and packaging defects are undetected until the first CI run.
-- **No linter or static analysis is configured.** Risk: style and simple correctness issues are caught only by review. See TD-002.
+These are standing waivers and are counted in [ASSESSMENT.md](ASSESSMENT.md).
 
-Each of these is a standing waiver and is counted in [ASSESSMENT.md](ASSESSMENT.md).
+## CI Coverage
+
+- Tests and coverage: Windows, macOS, and Ubuntu on Python 3.12 and 3.13.
+- Quality: Ruff, strict mypy, and living documentation on Ubuntu and Python 3.13.
+- Packaging: Windows and macOS on Python 3.13 with bundle smoke tests and uploaded artifacts.
+- Security: CodeQL Python analysis on push, pull request, and weekly schedule.
+- Dependency updates: weekly pip and GitHub Actions Dependabot checks.
 
 ## Validation Matrix
 
-| Change type | Class | Unit | Integration | Smoke | Manual import check |
-|---|---|---|---|---|---|
-| Documentation only | 1 | No | No | No | No |
-| Internal refactor | 2 | Yes | As needed | Yes | No |
-| Test-only change | 2 | Yes | No | No | No |
-| Bug fix | 3 | Yes | As needed | Yes | If exporter affected |
-| New feature or browser provider | 3 | Yes | Yes | Yes | If exporter affected |
-| Interface change | 3 | Yes | Yes | Yes | No |
-| Dependency change | 3 | Yes | Yes | Yes | No |
-| Architecture change | 4 | Yes | Yes | Yes | Yes |
-| Security or file-access change | 4 | Yes | Yes | Yes | No |
-| Packaging or build change | 4 | Yes | Yes | Yes | Yes |
+| Change type | Class | Tests | Quality | Integration | Package | Manual import |
+|---|---|---|---|---|---|---|
+| Documentation only | 1 | No | Docs only | No | No | No |
+| Internal refactor | 2 | Yes | Yes | As needed | No | No |
+| Test-only change | 2 | Yes | Yes | No | No | No |
+| Bug fix | 3 | Yes | Yes | As needed | If affected | If exporter affected |
+| New feature or provider | 3 | Yes | Yes | Yes | Yes | If exporter affected |
+| Interface or dependency change | 3 | Yes | Yes | Yes | Yes | No |
+| Architecture change | 4 | Yes | Yes | Yes | Yes | Yes |
+| Security or file-access change | 4 | Yes | Yes | Yes | Yes | If exporter affected |
+| Packaging or build change | 4 | Yes | Yes | Yes | Yes | Yes |
 
-**Hard rule.** Validation is never claimed on the basis of code inspection. If a command was not executed, it is reported as `BLOCKED` or `WAIVED` with a reason.
+**Hard rule.** Validation is never claimed from inspection. Record the command, exit code, passed, failed, and skipped counts. A required check that cannot run needs a waiver with reason, risk, and follow-up.

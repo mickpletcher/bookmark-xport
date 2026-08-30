@@ -9,6 +9,7 @@ An `Accepted` ADR is immutable except for its status line and cross-reference fi
 | [ADR-001](ADR-001-firefox-read-only-access.md) | Read Firefox places.sqlite read-only, with a temporary copy as fallback | Accepted | 2026-08-28 | — | — |
 | [ADR-002](ADR-002-safari-access-method.md) | Read Safari bookmarks from Bookmarks.plist and report Full Disk Access denial | Accepted | 2026-08-28 | — | — |
 | [ADR-003](ADR-003-no-qt-below-the-ui.md) | Keep Qt out of everything below the UI layer | Accepted | 2026-08-28 | — | — |
+| [ADR-004](ADR-004-preserve-mixed-bookmark-order.md) | Preserve mixed bookmark and folder order in the normalized model | Accepted | 2026-08-29 | — | — |
 
 ## Template
 

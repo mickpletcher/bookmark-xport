@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -11,12 +11,15 @@ from bookmark_exporter.models import Bookmark, BookmarkFolder
 def _tree() -> BookmarkFolder:
     nested = BookmarkFolder(
         name="Tools",
-        bookmarks=[Bookmark(title="Nested & <b>", url="https://example.org/x?a=1&b=2")],
+        children=[Bookmark(title="Nested & <b>", url="https://example.org/x?a=1&b=2")],
     )
     return BookmarkFolder(
         name="Development",
-        folders=[nested, BookmarkFolder(name="Empty")],
-        bookmarks=[Bookmark(title="Docs", url="https://example.com/docs")],
+        children=[
+            nested,
+            BookmarkFolder(name="Empty"),
+            Bookmark(title="Docs", url="https://example.com/docs"),
+        ],
     )
 
 
@@ -40,7 +43,7 @@ def test_nesting_is_preserved() -> None:
 def test_escapes_titles_and_urls() -> None:
     folder = BookmarkFolder(
         name='Quotes " and <tags>',
-        bookmarks=[
+        children=[
             Bookmark(title="<script>alert(1)</script>", url='https://example.com/"onload="x')
         ],
     )
@@ -48,13 +51,13 @@ def test_escapes_titles_and_urls() -> None:
 
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
-    assert 'Quotes &quot; and &lt;tags&gt;' in html
+    assert "Quotes &quot; and &lt;tags&gt;" in html
     assert '"https://example.com/&quot;onload=&quot;x"' in html
 
 
 def test_unicode_survives() -> None:
     folder = BookmarkFolder(
-        name="Café", bookmarks=[Bookmark(title="ünïcode ✓", url="https://example.org/✓")]
+        name="Café", children=[Bookmark(title="ünïcode ✓", url="https://example.org/✓")]
     )
     html = render(folder)
     assert "Café" in html
@@ -74,11 +77,11 @@ def test_output_is_deterministic() -> None:
 def test_add_date_is_emitted_when_known() -> None:
     folder = BookmarkFolder(
         name="Dated",
-        bookmarks=[
+        children=[
             Bookmark(
                 title="Docs",
                 url="https://example.com",
-                added=datetime(2022, 1, 1, tzinfo=timezone.utc),
+                added=datetime(2022, 1, 1, tzinfo=UTC),
             )
         ],
     )
@@ -86,9 +89,11 @@ def test_add_date_is_emitted_when_known() -> None:
 
 
 def test_siblings_and_parents_are_excluded() -> None:
-    child = BookmarkFolder(name="Child", bookmarks=[Bookmark(title="Keep", url="https://a.test")])
-    sibling = BookmarkFolder(name="Sibling", bookmarks=[Bookmark(title="Drop", url="https://b.test")])
-    BookmarkFolder(name="Parent", folders=[child, sibling])
+    child = BookmarkFolder(name="Child", children=[Bookmark(title="Keep", url="https://a.test")])
+    sibling = BookmarkFolder(
+        name="Sibling", children=[Bookmark(title="Drop", url="https://b.test")]
+    )
+    BookmarkFolder(name="Parent", children=[child, sibling])
 
     html = render(child)
     assert "Keep" in html
@@ -98,6 +103,20 @@ def test_siblings_and_parents_are_excluded() -> None:
 
 @pytest.mark.parametrize("url", ["", "javascript:alert(1)", "not a url", "https://a.test/#<>"])
 def test_unusual_urls_do_not_break_rendering(url: str) -> None:
-    html = render(BookmarkFolder(name="Odd", bookmarks=[Bookmark(title="t", url=url)]))
+    html = render(BookmarkFolder(name="Odd", children=[Bookmark(title="t", url=url)]))
     assert "<DT><A HREF=" in html
     assert "<>" not in html
+
+
+def test_preserves_mixed_bookmark_and_folder_order() -> None:
+    folder = BookmarkFolder(
+        name="Ordered",
+        children=[
+            Bookmark("First", "https://first.test"),
+            BookmarkFolder(name="Middle"),
+            Bookmark("Last", "https://last.test"),
+        ],
+    )
+
+    html = render(folder)
+    assert html.index(">First</A>") < html.index(">Middle</H3>") < html.index(">Last</A>")

@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from bookmark_exporter.browsers.base import (
     BookmarkDataUnavailableError,
@@ -29,7 +30,7 @@ from bookmark_exporter.models import (
 log = logging.getLogger(__name__)
 
 # Chromium timestamps are microseconds since 1601-01-01 UTC.
-_WEBKIT_EPOCH = datetime(1601, 1, 1, tzinfo=timezone.utc)
+_WEBKIT_EPOCH = datetime(1601, 1, 1, tzinfo=UTC)
 
 # Guards against a malformed or hostile file causing unbounded recursion.
 _MAX_DEPTH = 100
@@ -83,10 +84,8 @@ def _parse_node(node: Any, depth: int) -> Bookmark | BookmarkFolder | None:
 def _fill(folder: BookmarkFolder, children: Iterable[Any], depth: int) -> None:
     for child in children:
         parsed = _parse_node(child, depth)
-        if isinstance(parsed, BookmarkFolder):
-            folder.folders.append(parsed)
-        elif isinstance(parsed, Bookmark):
-            folder.bookmarks.append(parsed)
+        if isinstance(parsed, (Bookmark, BookmarkFolder)):
+            folder.children.append(parsed)
 
 
 def parse_bookmarks(raw: str, root_name: str = "Bookmarks") -> BookmarkFolder:
@@ -116,7 +115,7 @@ def parse_bookmarks(raw: str, root_name: str = "Bookmarks") -> BookmarkFolder:
             continue
         if not parsed.name:
             parsed.name = _ROOT_LABELS.get(key, key.replace("_", " ").title())
-        root.folders.append(parsed)
+        root.children.append(parsed)
 
     return assign_source_ids(root)
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
@@ -16,8 +18,10 @@ from bookmark_exporter.utils.paths import sanitize_filename
 def _folder() -> BookmarkFolder:
     return BookmarkFolder(
         name="Development",
-        folders=[BookmarkFolder(name="Tools", bookmarks=[Bookmark("T", "https://a.test")])],
-        bookmarks=[Bookmark("Docs", "https://example.com")],
+        children=[
+            BookmarkFolder(name="Tools", children=[Bookmark("T", "https://a.test")]),
+            Bookmark("Docs", "https://example.com"),
+        ],
     )
 
 
@@ -66,7 +70,58 @@ def test_sanitized_names_cannot_escape_the_chosen_directory() -> None:
     assert "\\" not in sanitize_filename("..\\..\\windows")
 
 
-def test_unwritable_destination_reports_an_export_error(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr("bookmark_exporter.services.export_service.os.access", lambda *_: False)
+def test_unwritable_destination_reports_an_export_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def deny(*args: object, **kwargs: object) -> NoReturn:
+        raise PermissionError
+
+    monkeypatch.setattr(
+        "bookmark_exporter.services.export_service.tempfile.NamedTemporaryFile", deny
+    )
     with pytest.raises(ExportError):
         export_folder(_folder(), tmp_path / "out.html")
+
+
+def test_failed_atomic_replace_preserves_existing_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = tmp_path / "out.html"
+    destination.write_text("existing", encoding="utf-8")
+
+    def fail_replace(*args: object, **kwargs: object) -> NoReturn:
+        raise OSError("synthetic failure")
+
+    monkeypatch.setattr("bookmark_exporter.services.export_service.os.replace", fail_replace)
+    with pytest.raises(ExportError):
+        export_folder(_folder(), destination)
+
+    assert destination.read_text(encoding="utf-8") == "existing"
+    assert list(tmp_path.glob(".out.html.*.tmp")) == []
+
+
+def test_failed_temporary_write_removes_sensitive_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fail_sync(*args: object, **kwargs: object) -> NoReturn:
+        raise OSError("synthetic flush failure")
+
+    monkeypatch.setattr("bookmark_exporter.services.export_service.os.fsync", fail_sync)
+    with pytest.raises(ExportError):
+        export_folder(_folder(), tmp_path / "out.html")
+
+    assert not (tmp_path / "out.html").exists()
+    assert list(tmp_path.glob(".out.html.*.tmp")) == []
+
+
+def test_export_log_does_not_contain_bookmark_content(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    folder = _folder()
+    with caplog.at_level(logging.INFO):
+        export_folder(folder, tmp_path / "out.html")
+
+    assert folder.name not in caplog.text
+    assert "Docs" not in caplog.text
+    assert "https://example.com" not in caplog.text
+    assert "Exported 2 bookmarks and 1 subfolders" in caplog.text

@@ -13,10 +13,11 @@ import logging
 import shutil
 import sqlite3
 import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterator
+from typing import Any
 
 from bookmark_exporter.browsers.base import (
     BookmarkDataUnavailableError,
@@ -64,15 +65,15 @@ ORDER BY b.parent, b.position, b.id
 """
 
 
-def _unix_microseconds(value: object) -> datetime | None:
+def _unix_microseconds(value: Any) -> datetime | None:
     try:
-        micros = int(value)  # type: ignore[arg-type]
+        micros = int(value)
     except (TypeError, ValueError):
         return None
     if micros <= 0:
         return None
     try:
-        return datetime.fromtimestamp(micros / 1_000_000, tz=timezone.utc)
+        return datetime.fromtimestamp(micros / 1_000_000, tz=UTC)
     except (OverflowError, OSError, ValueError):
         return None
 
@@ -108,15 +109,14 @@ def _open_places(path: Path) -> Iterator[sqlite3.Connection]:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def build_tree(rows: list[tuple], root_name: str = "Bookmarks") -> BookmarkFolder:
+def build_tree(rows: list[tuple[object, ...]], root_name: str = "Bookmarks") -> BookmarkFolder:
     """Build a bookmark tree from ``moz_bookmarks`` rows.
 
     Rows are ``(id, parent, type, title, position, dateAdded, guid, url)`` and
     are assumed to be ordered by parent then position, which is what preserves
     the user's ordering.
     """
-    children: dict[int, list[tuple]] = {}
-    guid_by_id: dict[int, str] = {}
+    children: dict[int, list[tuple[int, object, object, object, object, object]]] = {}
     root_id: int | None = None
 
     for row in rows:
@@ -126,7 +126,6 @@ def build_tree(rows: list[tuple], root_name: str = "Bookmarks") -> BookmarkFolde
             continue
         if not isinstance(row_id, int):
             continue
-        guid_by_id[row_id] = guid if isinstance(guid, str) else ""
         if guid == _ROOT_GUID:
             root_id = row_id
             continue
@@ -147,16 +146,16 @@ def build_tree(rows: list[tuple], root_name: str = "Bookmarks") -> BookmarkFolde
             name = title if isinstance(title, str) else ""
             if node_type == _TYPE_FOLDER:
                 child = BookmarkFolder(
-                    name=name or _ROOT_LABELS.get(guid or "", "Folder"),
+                    name=name or _ROOT_LABELS.get(guid if isinstance(guid, str) else "", "Folder"),
                     added=_unix_microseconds(date_added),
                 )
                 build(child, row_id, depth + 1)
-                folder.folders.append(child)
+                folder.children.append(child)
             elif node_type == _TYPE_BOOKMARK:
                 # "place:" entries are saved queries, not real bookmarks.
                 if not isinstance(url, str) or not url or url.startswith("place:"):
                     continue
-                folder.bookmarks.append(
+                folder.children.append(
                     Bookmark(title=name, url=url, added=_unix_microseconds(date_added))
                 )
 
@@ -194,9 +193,7 @@ class FirefoxProvider(BrowserProvider):
         try:
             parser.read(ini_path, encoding="utf-8")
         except PermissionError:
-            raise PermissionDeniedError(
-                "Access to the Firefox profile list was denied."
-            ) from None
+            raise PermissionDeniedError("Access to the Firefox profile list was denied.") from None
         except (OSError, configparser.Error) as exc:
             raise BookmarkDataUnavailableError(
                 "The Firefox profile list could not be read."

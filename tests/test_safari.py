@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import plistlib
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
@@ -63,6 +64,12 @@ def test_parses_lists_and_leaves() -> None:
     assert [bookmark.title for bookmark in favorites.bookmarks] == ["Alpha & Co"]
     assert favorites.folders[0].name == "Travel"
     assert favorites.folders[0].bookmarks[0].title == "Café ünïcode"
+    assert [
+        getattr(child, "name", getattr(child, "title", "")) for child in favorites.children
+    ] == [
+        "Alpha & Co",
+        "Travel",
+    ]
 
 
 def test_skips_proxies_and_leaves_without_a_url() -> None:
@@ -81,7 +88,9 @@ def test_non_list_root_is_corrupt() -> None:
         safari.parse_bookmarks(plistlib.dumps({"WebBookmarkType": "WebBookmarkTypeProxy"}))
 
 
-def test_unsupported_platform_reports_clearly(monkeypatch, tmp_path: Path) -> None:
+def test_unsupported_platform_reports_clearly(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(safari, "is_macos", lambda: False)
     provider = safari.SafariProvider()
 
@@ -91,12 +100,14 @@ def test_unsupported_platform_reports_clearly(monkeypatch, tmp_path: Path) -> No
         provider.load_bookmarks(_profile(tmp_path / "Bookmarks.plist"))
 
 
-def test_permission_denied_gives_full_disk_access_guidance(monkeypatch, tmp_path: Path) -> None:
+def test_permission_denied_gives_full_disk_access_guidance(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(safari, "is_macos", lambda: True)
     path = tmp_path / "Bookmarks.plist"
     path.write_bytes(plistlib.dumps(_PLIST))
 
-    def deny(self, *args, **kwargs):
+    def deny(self: Path, *args: object, **kwargs: object) -> NoReturn:
         raise PermissionError
 
     monkeypatch.setattr(Path, "read_bytes", deny)
@@ -106,7 +117,7 @@ def test_permission_denied_gives_full_disk_access_guidance(monkeypatch, tmp_path
     assert "Full Disk Access" in str(error.value)
 
 
-def test_reads_a_plist_file(monkeypatch, tmp_path: Path) -> None:
+def test_reads_a_plist_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(safari, "is_macos", lambda: True)
     path = tmp_path / "Bookmarks.plist"
     path.write_bytes(plistlib.dumps(_PLIST))

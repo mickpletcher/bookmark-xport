@@ -7,9 +7,9 @@ Packaging logic lives here so nothing in ``src/`` has to know it is frozen.
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 import sys
+from importlib.util import find_spec
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -18,12 +18,14 @@ APP_NAME = "bookmark-xport"
 
 
 def main() -> int:
-    if shutil.which("pyinstaller") is None:
+    if find_spec("PyInstaller") is None:
         sys.stderr.write("PyInstaller is not installed. Run: pip install -e .[dev]\n")
         return 1
 
     command = [
-        "pyinstaller",
+        sys.executable,
+        "-m",
+        "PyInstaller",
         "--noconfirm",
         "--clean",
         "--windowed",

@@ -2,7 +2,7 @@
 
 Defect tracking authority. Identifiers are permanent and never reused.
 
-No open defects. The repository contains no executable code, so nothing can be broken yet. Do not invent entries to populate this file.
+No open defects. Fixed defects are retained in [docs/archive/RESOLVED-ISSUES.md](docs/archive/RESOLVED-ISSUES.md).
 
 Fixed issues move to [docs/archive/RESOLVED-ISSUES.md](docs/archive/RESOLVED-ISSUES.md) once shipped and verified.
 

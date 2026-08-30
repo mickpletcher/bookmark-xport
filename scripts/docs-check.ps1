@@ -57,13 +57,54 @@ $rows = foreach ($name in $config.responsibilities.PSObject.Properties.Name) {
     [pscustomobject]@{ Responsibility = $name; Authority = $authority; Status = $status; LastUpdated = $updated }
 }
 
+$semanticGaps = [System.Collections.Generic.List[string]]::new()
+
+$forbiddenClaims = @(
+    @{ Path = 'PROJECT-STANDARD.md'; Pattern = 'Lifecycle mode:\s*Greenfield'; Message = 'Implemented repositories cannot remain in Greenfield mode.' },
+    @{ Path = 'AGENTS.md'; Pattern = 'Lifecycle mode:\s*Greenfield'; Message = 'AGENTS.md lifecycle mode disagrees with the implemented repository.' },
+    @{ Path = 'ISSUES.md'; Pattern = 'contains no executable code'; Message = 'ISSUES.md still claims that no executable code exists.' },
+    @{ Path = 'ASSESSMENT.md'; Pattern = 'CI.*never (run|executed)'; Message = 'ASSESSMENT.md still claims that CI has never run.' }
+)
+
+foreach ($claim in $forbiddenClaims) {
+    if ((Test-Path $claim.Path) -and (Select-String -Path $claim.Path -Pattern $claim.Pattern -Quiet)) {
+        $semanticGaps.Add($claim.Message)
+    }
+}
+
+$trackedFiles = git -c core.quotepath=false ls-files
+if ($trackedFiles | Where-Object { $_ -match 'MacBook Air' -and (Test-Path -LiteralPath $_) }) {
+    $semanticGaps.Add('Tracked machine-name conflict copies must be removed.')
+}
+
+$nonUiPython = Get-ChildItem 'src/bookmark_exporter' -Recurse -Filter '*.py' |
+    Where-Object {
+        $_.FullName -notmatch '[\\/]ui[\\/]' -and $_.Name -ne 'app.py'
+    }
+$qtImports = $nonUiPython | Select-String -Pattern '^\s*(from|import)\s+PySide6'
+if ($qtImports) {
+    $semanticGaps.Add('PySide6 is imported below the UI layer.')
+}
+
+$authorityConflict = Get-ChildItem -File -Filter '*.md' |
+    Select-String -Pattern 'Source of truth for scope/architecture:\s*`prompts/COPILOT-BUILD-PROMPT.md`'
+if ($authorityConflict) {
+    $semanticGaps.Add('A living document incorrectly treats the build prompt as authoritative scope.')
+}
+
 if ($Markdown) {
     '| Responsibility | Authority | Last updated | Status |'
     '|---|---|---|---|'
     $rows | ForEach-Object { "| $($_.Responsibility) | $($_.Authority) | $($_.LastUpdated) | $($_.Status) |" }
+    if ($semanticGaps) {
+        ''
+        'Semantic gaps:'
+        $semanticGaps | ForEach-Object { "- $_" }
+    }
 } else {
     $rows | Format-Table -AutoSize
+    $semanticGaps | ForEach-Object { Write-Warning $_ }
 }
 
 $gaps = $rows | Where-Object { $_.Status -eq 'MISSING' -or $_.Status -like 'REVIEW*' }
-if ($gaps -and $FailOnGap) { exit 1 }
+if (($gaps -or $semanticGaps) -and $FailOnGap) { exit 1 }

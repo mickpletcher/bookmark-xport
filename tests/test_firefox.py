@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import sqlite3
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -24,7 +25,7 @@ CREATE TABLE moz_bookmarks (
 );
 """
 
-_PLACES = [
+_PLACES: list[tuple[int, str]] = [
     (1, "https://example.com/alpha"),
     (2, "https://example.com/beta"),
     (3, "https://example.org/caf%C3%A9"),
@@ -32,7 +33,7 @@ _PLACES = [
 ]
 
 # (id, type, fk, parent, position, title, dateAdded, guid)
-_BOOKMARKS = [
+_BOOKMARKS: list[tuple[int, int, int | None, int, int, str | None, int, str]] = [
     (1, 2, None, 0, 0, "", 0, "root________"),
     (2, 2, None, 1, 0, "", 1_600_000_000_000_000, "menu________"),
     (3, 2, None, 1, 1, "", 1_600_000_000_000_000, "toolbar_____"),
@@ -62,10 +63,19 @@ def _make_places_db(path: Path) -> Path:
     return path
 
 
-def _rows() -> list[tuple]:
+def _rows() -> list[tuple[object, ...]]:
     urls = dict(_PLACES)
     return [
-        (row[0], row[3], row[1], row[5], row[4], row[6], row[7], urls.get(row[2]))
+        (
+            row[0],
+            row[3],
+            row[1],
+            row[5],
+            row[4],
+            row[6],
+            row[7],
+            urls.get(row[2]) if row[2] is not None else None,
+        )
         for row in _BOOKMARKS
     ]
 
@@ -83,6 +93,11 @@ def test_preserves_position_order() -> None:
     toolbar = build_tree(_rows()).folders[1]
     assert [bookmark.title for bookmark in toolbar.bookmarks] == ["Beta", "Alpha"]
     assert [folder.name for folder in toolbar.folders] == ["Development"]
+    assert [getattr(child, "name", getattr(child, "title", "")) for child in toolbar.children] == [
+        "Development",
+        "Beta",
+        "Alpha",
+    ]
 
 
 def test_skips_tags_separators_and_queries() -> None:
@@ -127,6 +142,37 @@ def test_load_bookmarks_does_not_modify_the_database(tmp_path: Path) -> None:
     assert hashlib.sha256(database.read_bytes()).hexdigest() == before
 
 
+def test_locked_database_fallback_reads_a_temporary_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = _make_places_db(tmp_path / "places.sqlite")
+    before = hashlib.sha256(database.read_bytes()).hexdigest()
+    real_connect = sqlite3.connect
+    calls = 0
+
+    def fail_first_connect(*args: Any, **kwargs: Any) -> sqlite3.Connection:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise sqlite3.OperationalError("synthetic lock")
+        return cast(sqlite3.Connection, real_connect(*args, **kwargs))
+
+    monkeypatch.setattr(sqlite3, "connect", fail_first_connect)
+    profile = BrowserProfile(
+        browser_id="firefox",
+        browser_name="Mozilla Firefox",
+        profile_id=str(database),
+        display_name="default-release",
+        data_path=str(database),
+    )
+
+    root = FirefoxProvider().load_bookmarks(profile)
+
+    assert calls == 2
+    assert root.bookmark_count == 3
+    assert hashlib.sha256(database.read_bytes()).hexdigest() == before
+
+
 def test_load_bookmarks_missing_profile(tmp_path: Path) -> None:
     profile = BrowserProfile(
         browser_id="firefox",
@@ -139,7 +185,9 @@ def test_load_bookmarks_missing_profile(tmp_path: Path) -> None:
         FirefoxProvider().load_bookmarks(profile)
 
 
-def test_detects_profiles_from_profiles_ini(tmp_path: Path, monkeypatch) -> None:
+def test_detects_profiles_from_profiles_ini(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = tmp_path / "Firefox"
     (root / "Profiles" / "abc.default-release").mkdir(parents=True)
     (root / "Profiles" / "def.dev").mkdir(parents=True)
@@ -162,7 +210,9 @@ def test_detects_profiles_from_profiles_ini(tmp_path: Path, monkeypatch) -> None
     ]
 
 
-def test_no_profiles_ini_yields_no_profiles(tmp_path: Path, monkeypatch) -> None:
+def test_no_profiles_ini_yields_no_profiles(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     provider = FirefoxProvider()
     monkeypatch.setattr(provider, "data_root", lambda: tmp_path)
     assert provider.detect_profiles() == []

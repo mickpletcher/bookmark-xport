@@ -6,9 +6,9 @@ particular browser stores its data.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Iterator
 
 
 @dataclass(slots=True)
@@ -23,15 +23,22 @@ class Bookmark:
 
 @dataclass(slots=True)
 class BookmarkFolder:
-    """A folder of bookmarks, holding child folders and bookmarks in order."""
+    """A folder whose children retain their original mixed ordering."""
 
     name: str
-    folders: list["BookmarkFolder"] = field(default_factory=list)
-    bookmarks: list[Bookmark] = field(default_factory=list)
+    children: list[Bookmark | BookmarkFolder] = field(default_factory=list)
     source_id: str | None = None
     added: datetime | None = None
 
-    def walk(self) -> Iterator["BookmarkFolder"]:
+    @property
+    def folders(self) -> list[BookmarkFolder]:
+        return [child for child in self.children if isinstance(child, BookmarkFolder)]
+
+    @property
+    def bookmarks(self) -> list[Bookmark]:
+        return [child for child in self.children if isinstance(child, Bookmark)]
+
+    def walk(self) -> Iterator[BookmarkFolder]:
         """Yield this folder and every descendant folder, depth first."""
         yield self
         for child in self.folders:
@@ -47,7 +54,7 @@ class BookmarkFolder:
         """Descendant folders, excluding this one."""
         return sum(1 for _ in self.walk()) - 1
 
-    def find(self, source_id: str) -> "BookmarkFolder | None":
+    def find(self, source_id: str) -> BookmarkFolder | None:
         """Return the descendant folder with this source identifier."""
         for folder in self.walk():
             if folder.source_id == source_id:

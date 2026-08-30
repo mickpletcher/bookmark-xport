@@ -4,7 +4,7 @@
 **Project tier:** 1
 **Tier rationale:** Multiple modules (GUI, browser providers, services, exporters) intended for reuse by other people, with limited integrations. No deployment, no operational consequence on failure, and no client or agreed scope, so Tier 2 and Tier 2C are not defensible.
 **Promotion trigger:** Promote to Tier 2 if the tool gains a deployment or update mechanism, runs unattended, or acquires operational consequences on failure. Promote to Tier 2C only if a client or stakeholder with agreed scope and sign-off appears.
-**Lifecycle mode:** Greenfield — implementation has not begun.
+**Lifecycle mode:** Maintenance — the initial implementation exists and follows this standard.
 **Adopted:** 2026-08-28
 
 This repository follows the Software Project Living Documentation Standard 2.2, reproduced at [prompts/Scaffolding.md](prompts/Scaffolding.md).
@@ -25,6 +25,7 @@ Exactly one authority per responsibility. Resolve every responsibility through t
 | Technical debt | TECH-DEBT.md | |
 | Deferred improvements | FUTURE-UPGRADES.md | |
 | Validation | VALIDATION.md | |
+| Security policy | SECURITY.md | Public vulnerability reporting and privacy boundaries |
 | Operations | Not required at this tier | Desktop application, no deployed runtime |
 | Requirement traceability | Not required at this tier | Tier 2C only |
 | Agreed scope | Not required at this tier | Tier 2C only; no client or counterparty |

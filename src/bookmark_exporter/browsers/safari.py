@@ -79,10 +79,8 @@ def _parse_node(node: Any, depth: int) -> Bookmark | BookmarkFolder | None:
         folder = BookmarkFolder(name=_label(node))
         for child in node.get("Children") or []:
             parsed = _parse_node(child, depth + 1)
-            if isinstance(parsed, BookmarkFolder):
-                folder.folders.append(parsed)
-            elif isinstance(parsed, Bookmark):
-                folder.bookmarks.append(parsed)
+            if isinstance(parsed, (Bookmark, BookmarkFolder)):
+                folder.children.append(parsed)
         return folder
 
     # WebBookmarkTypeProxy covers History and similar pseudo-entries.
@@ -146,8 +144,6 @@ class SafariProvider(BrowserProvider):
         except FileNotFoundError:
             raise ProfileNotFoundError("Safari's bookmark file no longer exists.") from None
         except OSError as exc:
-            raise BookmarkDataUnavailableError(
-                "Safari's bookmark file could not be read."
-            ) from exc
+            raise BookmarkDataUnavailableError("Safari's bookmark file could not be read.") from exc
 
         return parse_bookmarks(data, root_name=profile.display_name)

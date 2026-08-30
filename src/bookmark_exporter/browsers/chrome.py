@@ -5,7 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from bookmark_exporter.browsers.chromium import ChromiumProvider
-from bookmark_exporter.utils.paths import is_linux, is_macos, is_windows, local_app_data, mac_application_support
+from bookmark_exporter.utils.paths import (
+    is_linux,
+    is_macos,
+    is_windows,
+    local_app_data,
+    mac_application_support,
+)
 
 
 class ChromeProvider(ChromiumProvider):
