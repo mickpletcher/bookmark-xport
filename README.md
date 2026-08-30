@@ -1,2 +1,143 @@
 # bookmark-xport
-Cross-browser tool for exporting individual bookmark folders from Chrome, Edge, Firefox, and Safari to portable HTML files for easy sharing and import.
+
+Cross-browser desktop tool for exporting a single bookmark folder from Chrome, Edge, Firefox, or Safari to a portable HTML file.
+
+## Overview
+
+Every major browser can export all bookmarks. None of them make it convenient to export one folder. That is the gap this tool fills: pick a browser, pick a profile, pick one folder, and get a standards-compatible HTML bookmark file you can share or import elsewhere.
+
+## Current Status
+
+- Status: Active
+- Version: 0.1.0
+- Project tier: 1
+- Primary technologies: Python 3.12+, PySide6 / Qt
+- Owner: Mick
+
+For current repository health, see [ASSESSMENT.md](ASSESSMENT.md).
+
+## Browser and Platform Support
+
+| Browser | Windows | macOS | Linux | Verified |
+|---|---|---|---|---|
+| Google Chrome | Yes | Yes | Yes | Windows 11 |
+| Microsoft Edge | Yes | Yes | Yes | Windows 11 |
+| Mozilla Firefox | Yes | Yes | Yes | Windows 11 |
+| Apple Safari | — | Yes | — | Not verified |
+
+Safari support is implemented and unit tested against a synthetic fixture, but it has never been executed on macOS. Treat it as unverified. macOS and Linux are supported by the code but have not been run.
+
+## Key Capabilities
+
+- Detects installed browsers and distinguishes available data, missing data, an unsupported OS, and permission denial.
+- Discovers multiple profiles for Chromium browsers and Firefox.
+- Browsable folder tree with recursive bookmark and subfolder counts.
+- Exports exactly one selected folder plus all descendants, never siblings or parents.
+- Netscape-format HTML output that imports into mainstream browsers.
+- Suggests a sanitized filename such as `Development-Bookmarks.html`.
+- Remembers the last export directory. Nothing else is persisted.
+
+## Architecture Summary
+
+Browser-specific parsing is isolated behind a provider interface, feeding a normalized bookmark model that the UI and the HTML exporter both consume. No browser user interface is automated; local bookmark files are read directly, read-only. Nothing below the UI layer imports Qt. See [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Repository Structure
+
+```text
+.
+├── src/bookmark_exporter/
+│   ├── app.py             Bootstrap and logging
+│   ├── browsers/          One module per browser, plus the shared Chromium parser
+│   ├── exporters/         Netscape bookmark HTML writer
+│   ├── models/            Normalized Bookmark and BookmarkFolder
+│   ├── services/          Browser discovery and export
+│   ├── ui/                PySide6 window and Qt model adapters
+│   └── utils/             Paths, logging, preferences
+├── tests/                 pytest suite and synthetic fixtures
+├── scripts/
+│   ├── build.py           PyInstaller wrapper
+│   └── docs-check.ps1     Documentation compliance and drift check
+├── docs/
+│   ├── archive/           Resolved debt, issues, upgrades
+│   └── decisions/         Architecture decision records
+├── changelog.d/           Per-change changelog fragments
+└── prompts/               Implementation brief and the documentation standard
+```
+
+## Getting Started
+
+```powershell
+git clone <repository-url>
+cd bookmark-xport
+py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m bookmark_exporter
+```
+
+On macOS or Linux use `python3 -m venv .venv` and `.venv/bin/python`.
+
+Add `--verbose` for debug-level logging.
+
+## Usage
+
+1. Pick a browser. Browsers with no readable data are listed but disabled.
+2. Pick a profile if the browser has more than one.
+3. Select one folder in the tree. The summary line shows recursive counts.
+4. Click Export Folder and choose where to save.
+5. Import the file through any browser's bookmark import.
+
+## Packaging
+
+```powershell
+.\.venv\Scripts\python.exe scripts/build.py
+```
+
+Produces a windowed PyInstaller bundle in `dist/`. Packaging logic lives entirely in that script; the application does not know it is frozen.
+
+## Privacy
+
+- All processing is local. The application performs no network I/O of any kind.
+- No analytics and no telemetry.
+- Full URLs are never written to the log at normal levels; only scheme and host.
+- Bookmark titles and URLs are never stored in preferences.
+- The only file containing bookmark content is the one you explicitly export.
+
+## Read-Only Guarantee
+
+This release is an exporter. It never adds, deletes, renames, or reorganizes browser bookmarks. No browser file is opened for writing. Firefox's `places.sqlite` is opened read-only, and when it is locked a temporary copy is read instead. See [ADR-001](docs/decisions/ADR-001-firefox-read-only-access.md).
+
+## Validation
+
+```powershell
+$env:QT_QPA_PLATFORM = "offscreen"
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+See [VALIDATION.md](VALIDATION.md) for levels, the validation matrix, and known limitations.
+
+Documentation compliance:
+
+```powershell
+pwsh ./scripts/docs-check.ps1 -Markdown
+```
+
+## Contributing
+
+Read [AGENTS.md](AGENTS.md) and [PROJECT-STANDARD.md](PROJECT-STANDARD.md) first. Three rules are absolute: browser data is read-only, no browser UI is automated, and no real bookmark data enters this repository. Test fixtures are synthetic.
+
+Add a fragment to `changelog.d/` rather than editing CHANGELOG.md on a branch.
+
+## Documentation
+
+See the Authority Mapping in [PROJECT-STANDARD.md](PROJECT-STANDARD.md) for the authoritative source of each documentation responsibility.
+
+## Known Limitations
+
+- Safari is implemented but has never been executed. See [VALIDATION.md](VALIDATION.md).
+- Exported HTML has not yet been import-tested in a browser.
+- Within a folder, subfolders are written before bookmarks; the original mixed ordering is not preserved.
+- Open technical debt is listed in [TECH-DEBT.md](TECH-DEBT.md); known defects in [ISSUES.md](ISSUES.md).
+
+## License
+
+MIT. See [LICENSE](LICENSE).

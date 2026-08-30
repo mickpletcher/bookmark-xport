@@ -1,0 +1,80 @@
+{
+  "checksum": "0000000000000000000000000000",
+  "roots": {
+    "bookmark_bar": {
+      "children": [
+        {
+          "children": [
+            {
+              "date_added": "13300000000000000",
+              "name": "Example Docs",
+              "type": "url",
+              "url": "https://example.com/docs"
+            },
+            {
+              "children": [
+                {
+                  "date_added": "13300000010000000",
+                  "name": "Nested & <escaped>",
+                  "type": "url",
+                  "url": "https://example.org/nested?a=1&b=2"
+                }
+              ],
+              "date_added": "13300000005000000",
+              "name": "Tools",
+              "type": "folder"
+            },
+            {
+              "children": [],
+              "date_added": "13300000006000000",
+              "name": "Empty",
+              "type": "folder"
+            },
+            {
+              "date_added": "13300000007000000",
+              "name": "Missing URL",
+              "type": "url"
+            },
+            {
+              "date_added": "13300000008000000",
+              "name": "Unknown node",
+              "type": "gadget"
+            }
+          ],
+          "date_added": "13300000001000000",
+          "name": "Development",
+          "type": "folder"
+        },
+        {
+          "date_added": "13300000002000000",
+          "name": "Café ünïcode ✓",
+          "type": "url",
+          "url": "https://example.com/caf%C3%A9"
+        }
+      ],
+      "date_added": "13290000000000000",
+      "name": "Bookmarks bar",
+      "type": "folder"
+    },
+    "other": {
+      "children": [
+        {
+          "date_added": "13300000003000000",
+          "name": "Loose Bookmark",
+          "type": "url",
+          "url": "https://example.net/loose"
+        }
+      ],
+      "date_added": "13290000000000000",
+      "name": "",
+      "type": "folder"
+    },
+    "synced": {
+      "children": [],
+      "date_added": "13290000000000000",
+      "name": "",
+      "type": "folder"
+    }
+  },
+  "version": 1
+}
