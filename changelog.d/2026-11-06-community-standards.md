@@ -2,7 +2,7 @@
 
 - Contributor, conduct, support, and accessibility guidance with privacy-safe reporting.
 - Bug, feature, accessibility, and pull request templates.
-- README badges linked to the actual test/CodeQL workflows, license, Python requirement, and accessibility guidance.
+- README badges linked to the actual test/CodeQL workflows, license, and Python requirement.
 
 ### Fixed
 

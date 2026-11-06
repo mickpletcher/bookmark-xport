@@ -4,7 +4,6 @@
 [![CodeQL](https://github.com/mickpletcher/bookmark-xport/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/mickpletcher/bookmark-xport/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](pyproject.toml)
-[![Accessibility guidance](https://img.shields.io/badge/Accessibility-guidance-blue.svg)](ACCESSIBILITY.md)
 
 Cross-browser desktop tool for exporting a single bookmark folder from Chrome, Edge, Firefox, or Safari to a portable HTML file.
 
