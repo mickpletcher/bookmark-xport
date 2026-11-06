@@ -16,6 +16,8 @@ pytest.importorskip("PySide6")
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtGui import QAccessible  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 from pytestqt.qtbot import QtBot  # noqa: E402
 
@@ -223,3 +225,47 @@ def test_selecting_and_exporting_a_folder(
     assert destination.is_file()
     assert "Development" in destination.read_text(encoding="utf-8")
     assert window.status_label.text() == "Exported 1 bookmarks to selected.html."
+
+
+@pytest.mark.parametrize("attribute", ["summary_label", "status_label"])
+def test_dynamic_labels_expose_current_accessible_text(
+    qtbot: QtBot, monkeypatch: pytest.MonkeyPatch, attribute: str
+) -> None:
+    window = _window_without_discovery(qtbot, monkeypatch)
+    label = getattr(window, attribute)
+    accessible = QAccessible.queryAccessibleInterface(label)
+    assert accessible is not None
+    assert accessible.text(QAccessible.Text.Name) == label.text()
+
+    for text in [
+        "Selected: Development | 1 bookmarks | 1 subfolders",
+        "Exported 1 bookmarks to selected.html.",
+        "Synthetic bookmark failure.",
+    ]:
+        label.setText(text)
+        assert accessible.text(QAccessible.Text.Name) == text
+
+
+def test_large_text_summary_wraps_without_clipping(
+    qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    window = _window_without_discovery(qtbot, monkeypatch)
+    font = window.font()
+    font.setPointSize(24)
+    window.setFont(font)
+    window.summary_label.setText(
+        "Selected: Development resources and documentation | 123 bookmarks | 45 subfolders"
+    )
+    window.resize(720, 560)
+    window.show()
+    QApplication.processEvents()
+
+    label = window.summary_label
+    assert label.wordWrap()
+    needed = label.fontMetrics().boundingRect(
+        label.contentsRect(), Qt.TextFlag.TextWordWrap, label.text()
+    )
+    assert needed.height() > label.fontMetrics().height()
+    assert needed.height() <= label.contentsRect().height()
+    assert needed.width() <= label.contentsRect().width()
+    assert window.rect().contains(label.mapTo(window, label.rect().bottomRight()))
