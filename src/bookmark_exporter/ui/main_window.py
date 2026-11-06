@@ -116,12 +116,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.tree, stretch=1)
 
         self.summary_label = QLabel("No folder selected.")
-        self.summary_label.setAccessibleName("Selected folder summary")
+        self.summary_label.setWordWrap(True)
         layout.addWidget(self.summary_label)
 
         actions = QHBoxLayout()
         self.status_label = QLabel("Looking for installed browsers...")
-        self.status_label.setAccessibleName("Status")
         self.status_label.setWordWrap(True)
         actions.addWidget(self.status_label, stretch=1)
 
