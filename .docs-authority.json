@@ -1,7 +1,7 @@
 {
   "standardVersion": "2.2",
   "tier": "1",
-  "sourcePaths": ["src", "tests", "scripts", ".github", "pyproject.toml", "requirements-dev.lock"],
+  "sourcePaths": ["src", "tests", "scripts", ".github/workflows", ".github/dependabot.yml", "pyproject.toml", "requirements-dev.lock"],
   "maxDriftDays": 30,
   "responsibilities": {
     "Project overview":         { "authority": "README.md",                        "class": "living" },

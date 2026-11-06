@@ -1,5 +1,10 @@
 # bookmark-xport
 
+[![Tests](https://github.com/mickpletcher/bookmark-xport/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/mickpletcher/bookmark-xport/actions/workflows/tests.yml)
+[![CodeQL](https://github.com/mickpletcher/bookmark-xport/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/mickpletcher/bookmark-xport/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](pyproject.toml)
+
 Cross-browser desktop tool for exporting a single bookmark folder from Chrome, Edge, Firefox, or Safari to a portable HTML file.
 
 ## Overview
@@ -69,7 +74,7 @@ Browser-specific parsing is isolated behind a provider interface, feeding a norm
 ## Getting Started
 
 ```powershell
-git clone <repository-url>
+git clone https://github.com/mickpletcher/bookmark-xport.git
 cd bookmark-xport
 py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --requirement requirements-dev.lock
@@ -134,6 +139,10 @@ pwsh ./scripts/docs-check.ps1 -Markdown
 ```
 
 ## Contributing
+
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) and follow the
+[Code of Conduct](CODE_OF_CONDUCT.md). See [SUPPORT.md](SUPPORT.md) for help and
+[ACCESSIBILITY.md](ACCESSIBILITY.md) for keyboard guidance, limitations, and reporting barriers.
 
 Read [AGENTS.md](AGENTS.md) and [PROJECT-STANDARD.md](PROJECT-STANDARD.md) first. Three rules are absolute: browser data is read-only, no browser UI is automated, and no real bookmark data enters this repository. Test fixtures are synthetic.
 
